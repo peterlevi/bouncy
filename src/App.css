@@ -1,6 +1,5 @@
-.root {
+.Game {
   background-color: #282c34;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -9,13 +8,10 @@
   color: white;
 }
 
-.Ball {
+.Game * {
   position: absolute;
-  border-radius: 100%;
 }
 
-.Platform {
-  position: absolute;
-  height: 10px;
-  background-color: orange;
+.Ball {
+  border-radius: 100%;
 }
