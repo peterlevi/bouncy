@@ -8,7 +8,7 @@ const WIDTH = 600;
 const HEIGHT = 600;
 const GRAVITY = -0.15;
 const X_ACCEL = 0.5;
-const BOUNCINESS = 0.8;
+const BOUNCINESS = 0.75;
 const RESISTANCE = 0.9;
 
 interface Position {
@@ -44,26 +44,53 @@ interface ImageModel extends Position {
 }
 
 class Model {
-  @observable balls: BallModel[] = [
-    { id: 'ball1', x: 150, y: HEIGHT - 20, vx: 0, vy: 0, radius: 10, color: 'red' },
-  ];
-  @observable platforms: PlatformModel[] = [
-    { x: 100, y: 100, width: 200, height: 10, color: 'orange' },
-  ];
-  @observable images: ImageModel[] = [
-    { x: 150, y: 100, src: Flame, height: 150, width: 'auto' },
-  ];
+  @observable data: {
+    balls: BallModel[];
+    platforms: PlatformModel[];
+    images: ImageModel[];
+  } = { balls: [], platforms: [], images: [] };
 
   keys: Set<string> = new Set<string>();
 
+  constructor() {
+    this.reset();
+  }
+
+  reset() {
+    this.data.balls = [
+      {
+        id: 'ball1',
+        x: 150,
+        y: HEIGHT - 20,
+        vx: 0,
+        vy: 0,
+        radius: 10,
+        color: 'red',
+      },
+    ];
+    this.data.platforms = [
+      { x: 100, y: 500, width: 200, height: 10, color: 'orange' },
+      { x: 400, y: 400, width: 200, height: 10, color: 'orange' },
+      { x: 200, y: 300, width: 200, height: 10, color: 'orange' },
+      { x: 300, y: 200, width: 200, height: 10, color: 'orange' },
+      { x: 50, y: 100, width: 200, height: 10, color: 'orange' },
+      { x: -WIDTH, y: 10, width: 3*WIDTH, height: 10, color: 'orange' },
+    ];
+    this.data.images = [
+      { x: 150, y: 100, src: Flame, height: 150, width: 'auto' },
+    ];
+  }
+
   @action update() {
-    const { balls, platforms, keys } = this;
+    const { keys } = this;
+    const { balls, platforms } = this.data;
+
     for (let b of balls) {
       let stop = false;
       for (let platform of platforms) {
         if (
-          b.y < platform.y + b.radius &&
-          b.y > platform.y - b.radius &&
+          b.y <= platform.y + b.radius &&
+          b.y >= platform.y - b.radius &&
           b.x >= platform.x &&
           b.x <= platform.x + platform.width
         ) {
@@ -75,9 +102,21 @@ class Model {
             b.vy = 0;
             stop = true;
           }
+          if (keys.has('ArrowUp') && b.vy >= 0) {
+            b.vy -= GRAVITY * 30;
+          }
+        } else if (
+          b.y >= platform.y - platform.height - b.radius &&
+          b.y <= platform.y - platform.height + b.radius &&
+          b.x >= platform.x &&
+          b.x <= platform.x + platform.width
+        ) {
+          b.y = platform.y - platform.height - b.radius;
+          if (b.vy > 0) {
+            b.vy = -BOUNCINESS * b.vy;
+          }
         }
       }
-
       if (!stop) {
         b.vy += GRAVITY;
         b.y += b.vy;
@@ -87,14 +126,13 @@ class Model {
         b.vx -= X_ACCEL;
       } else if (keys.has('ArrowRight')) {
         b.vx += X_ACCEL;
-        console.log('accel');
       }
       b.vx *= RESISTANCE;
       if (Math.abs(b.vx) < 0.05) {
         b.vx = 0;
+      } else {
+        b.x += b.vx;
       }
-
-      b.x += b.vx;
     }
   }
 
@@ -162,22 +200,24 @@ class Game extends Component<{ model: Model }> {
   root: HTMLDivElement | null = null;
 
   render() {
-    const { balls, platforms, images, keys } = this.props.model;
+    const { balls, platforms, images } = this.props.model.data;
+    const { keys } = this.props.model;
+
     return (
       <div
         ref={e => (this.root = e)}
         tabIndex={0}
         className="Game"
-        style={{ width: WIDTH, height: HEIGHT }}
+        style={{ width: WIDTH, height: HEIGHT, maxWidth: WIDTH }}
         onKeyDown={e => {
           keys.add(e.key);
           e.preventDefault();
-          console.log(keys);
+          // console.log(keys);
         }}
         onKeyUp={e => {
           keys.delete(e.key);
           e.preventDefault();
-          console.log(keys);
+          // console.log(keys);
         }}>
         {balls.map(ball => (
           <Ball ball={ball} key={key(ball)} />
