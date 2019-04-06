@@ -1,3 +1,20 @@
+# Bouncy
+
+Simple ball game written to experiment with TypeScript, MobX, React, 
+and last but not least - to enternain my kids, also teaching them some programming concepts 
+in the process.
+
+Work in progress.  
+Some (somewhat buggy) physics in place.
+
+### TODO
+- Make stage infinite and auto-scroll with ball
+- Choose some game goals, add some "enemies" and rewards
+- Add scoring, "death" condition, game restart
+- Improve physics
+
+# create-react-app
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
