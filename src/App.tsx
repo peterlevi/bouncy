@@ -150,6 +150,7 @@ class Model {
       }
 
       //   // ball-side collisions based on https://stackoverflow.com/a/48598489
+      //   // Buggier around corners than my custom solution above, needs investigatiing.
       //   if (
       //     !collision &&
       //     b.y < platform.y + b.radius &&
