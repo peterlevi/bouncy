@@ -9,6 +9,11 @@
   overflow: hidden;
 }
 
+.Game:focus {
+  outline: none;
+  border: none;
+}
+
 .Game * {
   position: absolute;
 }
