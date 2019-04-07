@@ -54,6 +54,7 @@ class Model {
   } = { balls: [], platforms: [], images: [] };
 
   keys: Set<string> = new Set<string>();
+  unprocessedKeys: Set<string> = new Set<string>();
 
   constructor() {
     this.reset();
@@ -89,8 +90,17 @@ class Model {
   @action update() {
     var t0 = performance.now();
 
-    const { keys } = this;
+    const { keys, unprocessedKeys } = this;
     const { balls, platforms } = this.data;
+
+    if (keys.has('ArrowUp')) {
+      unprocessedKeys.add('ArrowUp');
+    }
+
+    // is ball b horizontally within the platform, regardless of y
+    const inx = (b: BallModel, platform: PlatformModel) =>
+      b.x >= platform.x - b.radius / 2 &&
+      b.x <= platform.x + platform.width + b.radius / 2;
 
     for (let b of balls) {
       let stop = false;
@@ -121,8 +131,7 @@ class Model {
           if (
             b.y <= platform.y + b.radius &&
             b.y >= platform.y - b.radius &&
-            b.x >= platform.x - b.radius / 2 &&
-            b.x <= platform.x + platform.width + b.radius / 2
+            inx(b, platform)
           ) {
             b.y = platform.y + b.radius;
             if (b.vy < 0) {
@@ -132,14 +141,15 @@ class Model {
               b.vy = 0;
               stop = true;
             }
-            if (keys.has('ArrowUp') && b.vy >= 0) {
-              b.vy -= GRAVITY * 20;
+            if (unprocessedKeys.has('ArrowUp') && b.vy >= 0) {
+              unprocessedKeys.delete('ArrowUp');
+              keys.delete('ArrowUp');
+              b.vy = Math.max(b.vy, -GRAVITY * 40);
             }
           } else if (
             b.y >= platform.y - platform.height - b.radius &&
             b.y <= platform.y - platform.height + b.radius &&
-            b.x >= platform.x - b.radius / 2 &&
-            b.x <= platform.x + platform.width + b.radius / 2
+            inx(b, platform)
           ) {
             b.y = platform.y - platform.height - b.radius;
             if (b.vy > 0) {
@@ -185,7 +195,27 @@ class Model {
 
       if (!stop) {
         b.vy += GRAVITY;
-        b.y += b.vy;
+
+        // update b.y with vy, but so as not to "pass" through platforms
+        if (b.vy > 0) {
+          let closestAbove = Math.min(
+            ...platforms
+              .filter(p => p.y - p.height >= b.y + b.radius && inx(b, p))
+              .map(p => p.y - p.height)
+          );
+          b.y = Math.min(b.y + b.vy, closestAbove - b.radius);
+        } else {
+          let closestBelow = Math.max(
+            ...platforms
+              .filter(p => p.y <= b.y - b.radius && inx(b, p))
+              .map(p => p.y)
+          );
+          b.y = Math.max(b.y + b.vy, closestBelow + b.radius);
+        }
+      }
+
+      if (Math.abs(b.vy) >= -GRAVITY * 100) {
+        b.vy = Math.sign(b.vy) * (-GRAVITY * 100);
       }
 
       if (keys.has('ArrowLeft')) {
