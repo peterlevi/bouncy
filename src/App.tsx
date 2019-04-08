@@ -5,8 +5,8 @@ import './App.css';
 import Flame from './images/flame.gif';
 import TennisBall from './images/tennisball.png';
 
-const WIDTH = 600;
-const HEIGHT = 600;
+const WIDTH = window.innerWidth;
+const HEIGHT = window.innerHeight;
 const GRAVITY = -0.25;
 const X_ACCEL = 0.5;
 const BOUNCINESS = 0.8;
@@ -46,12 +46,32 @@ interface ImageModel extends Position {
   src: string;
 }
 
+const randomPlatform = (): PlatformModel => ({
+  x: Math.random() * 2 * WIDTH,
+  y: 10 + Math.floor((Math.random() * (HEIGHT - 30)) / 100) * 100,
+  width: 50 + Math.random() * 150,
+  height: 10,
+  color: 'orange',
+});
+
 class Model {
+  private INITIAL_DATA = {
+    gameOver: false,
+    score: 0,
+    offsetx: 0,
+    balls: [],
+    platforms: [],
+    images: [],
+  };
+
   @observable data: {
+    gameOver: boolean;
+    score: number;
+    offsetx: number;
     balls: BallModel[];
     platforms: PlatformModel[];
     images: ImageModel[];
-  } = { balls: [], platforms: [], images: [] };
+  } = this.INITIAL_DATA;
 
   keys: Set<string> = new Set<string>();
   unprocessedKeys: Set<string> = new Set<string>();
@@ -61,6 +81,7 @@ class Model {
   }
 
   reset() {
+    this.data = this.INITIAL_DATA;
     this.data.balls = [
       {
         id: 'ball1',
@@ -76,12 +97,10 @@ class Model {
     ];
     this.data.platforms = [
       { x: 100, y: 500, width: 200, height: 10, color: 'orange' },
-      { x: 400, y: 400, width: 200, height: 10, color: 'orange' },
-      { x: 200, y: 300, width: 200, height: 10, color: 'orange' },
-      { x: 300, y: 200, width: 200, height: 10, color: 'orange' },
-      { x: 50, y: 100, width: 200, height: 10, color: 'orange' },
-      { x: 0, y: 10, width: WIDTH, height: 10, color: 'orange' },
     ];
+    while (this.data.platforms.length < 25) {
+      this.data.platforms.push(randomPlatform());
+    }
     this.data.images = [
       { x: 150, y: 100, src: Flame, height: 150, width: 'auto' },
     ];
@@ -90,8 +109,8 @@ class Model {
   @action update() {
     var t0 = performance.now();
 
-    const { keys, unprocessedKeys } = this;
-    const { balls, platforms } = this.data;
+    const { data, keys, unprocessedKeys } = this;
+    const { offsetx, balls, platforms } = data;
 
     if (keys.has('ArrowUp')) {
       unprocessedKeys.add('ArrowUp');
@@ -103,6 +122,10 @@ class Model {
       b.x <= platform.x + platform.width + b.radius / 2;
 
     for (let b of balls) {
+      if (data.gameOver && b.y < -100) {
+        return;
+      }
+
       let stop = false;
 
       for (let platform of platforms) {
@@ -144,7 +167,7 @@ class Model {
             if (unprocessedKeys.has('ArrowUp') && b.vy >= 0) {
               unprocessedKeys.delete('ArrowUp');
               keys.delete('ArrowUp');
-              b.vy = Math.max(b.vy, -GRAVITY * 40);
+              b.vy -= GRAVITY * 20;
             }
           } else if (
             b.y >= platform.y - platform.height - b.radius &&
@@ -158,40 +181,6 @@ class Model {
           }
         }
       }
-
-      //   // ball-side collisions based on https://stackoverflow.com/a/48598489
-      //   // Buggier around corners than my custom solution above, needs investigatiing.
-      //   if (
-      //     !collision &&
-      //     b.y < platform.y + b.radius &&
-      //     b.y > platform.y - platform.height - b.radius &&
-      //     b.x > platform.x - b.radius &&
-      //     b.x < platform.x + platform.width + b.radius
-      //   ) {
-      //     // Choose which side of the box is closest to the circle's centre
-      //     var dists = [
-      //       Math.abs(b.x - platform.x),
-      //       Math.abs(b.x - (platform.x + platform.width)),
-      //       Math.abs(b.y - platform.y),
-      //       Math.abs(b.y - (platform.y - platform.height)),
-      //     ];
-      //     // Get minimum value's index in array
-      //     var i = dists.indexOf(Math.min.apply(Math, dists));
-      //     // ... that will be the side that dictates the bounce
-      //     if (i < 2) {
-      //       b.vx = (i == 0 ? -1 : 1) * Math.abs(b.vx);
-      //     } else {
-      //       b.vy = (i == 2 ? 1 : -1) * Math.abs(b.vy) * BOUNCINESS;
-      //     }
-      //     if (Math.abs(b.vy) < 0.2) {
-      //       b.vy = 0;
-      //       stop = true;
-      //     }
-      //     if (keys.has('ArrowUp') && b.vy >= 0) {
-      //       b.vy += -GRAVITY * 20;
-      //     }
-      //   }
-      // }
 
       if (!stop) {
         b.vy += GRAVITY;
@@ -231,22 +220,44 @@ class Model {
         b.rotation += 4 * b.vx;
       }
 
+      if (b.x - offsetx < 200) {
+        data.offsetx = Math.max(0, b.x - 200);
+      } else if (b.x - offsetx > WIDTH - 800) {
+        data.offsetx = b.x - (WIDTH - 800);
+      }
+
       // keep ball in viewport
       if (b.x - b.radius < 0) {
         b.x = b.radius;
         b.vx = Math.abs(b.vx);
       }
-      if (b.x + b.radius > WIDTH) {
-        b.x = WIDTH - b.radius;
-        b.vx = -Math.abs(b.vx);
-      }
+
+      data.score = Math.max(data.score, Math.floor(b.x));
+
+      // if (b.x + b.radius > WIDTH) {
+      //   b.x = WIDTH - b.radius;
+      //   b.vx = -Math.abs(b.vx);
+      // }
       if (b.y - b.radius < 0) {
-        b.y = b.radius;
-        b.vy = Math.abs(b.vy);
+        data.gameOver = true;
+        // b.y = b.radius;
+        // b.vy = Math.abs(b.vy);
       }
       if (b.y + b.radius > HEIGHT) {
         b.y = HEIGHT - b.radius;
         b.vy = -Math.abs(b.vy);
+      }
+
+      // remove "past" platforms and add new ones
+      data.platforms = platforms.filter(p => p.x + p.width >= b.x - 2 * WIDTH);
+      while (
+        data.platforms.filter(p => p.x >= b.x + 2 * WIDTH).length <
+        Math.max(25 - data.score / 1000, 10)
+      ) {
+        data.platforms.push({
+          ...randomPlatform(),
+          x: b.x + 2 * WIDTH + Math.random() * 2 * WIDTH,
+        });
       }
     }
 
@@ -264,28 +275,25 @@ class Model {
 const model = new Model();
 (window as any).model = model;
 
-const BallDiv = observer(
-  ({ ball: { x, y, radius, color } }: { ball: BallModel }) => (
-    <div
-      className="Ball"
-      style={{
-        left: x - radius,
-        top: HEIGHT - y - radius,
-        width: 2 * radius,
-        height: 2 * radius,
-        backgroundColor: color,
-      }}
-    />
+const Viewport = observer(
+  ({ offsetx, children }: { offsetx: number; children: React.ReactNode[] }) => (
+    <div className={'Viewport'}>{children}</div>
   )
 );
 
 const BallImage = observer(
-  ({ ball: { x, y, radius, src, rotation } }: { ball: BallModel }) => (
+  ({
+    offsetx,
+    ball: { x, y, radius, src, rotation },
+  }: {
+    offsetx: number;
+    ball: BallModel;
+  }) => (
     <img
       className="BallImage"
       src={src}
       style={{
-        left: x - radius,
+        left: x - radius - offsetx,
         top: HEIGHT - y - radius,
         width: 2 * radius,
         height: 2 * radius,
@@ -297,14 +305,16 @@ const BallImage = observer(
 
 const Platform = observer(
   ({
+    offsetx,
     platform: { x, y, width, height, color },
   }: {
+    offsetx: number;
     platform: PlatformModel;
   }) => (
     <div
       className="Platform"
       style={{
-        left: x,
+        left: x - offsetx,
         top: HEIGHT - y,
         width,
         height,
@@ -315,11 +325,17 @@ const Platform = observer(
 );
 
 const Image = observer(
-  ({ image: { x, y, width, height, src } }: { image: ImageModel }) => (
+  ({
+    offsetx,
+    image: { x, y, width, height, src },
+  }: {
+    offsetx: number;
+    image: ImageModel;
+  }) => (
     <div
       className="Image"
       style={{
-        left: x,
+        left: x - offsetx,
         top: HEIGHT - y - height,
         width,
         height,
@@ -340,7 +356,14 @@ class Game extends Component<{
   root: HTMLDivElement | null = null;
 
   render() {
-    const { balls, platforms, images } = this.props.model.data;
+    const {
+      gameOver,
+      score,
+      offsetx,
+      balls,
+      platforms,
+      images,
+    } = this.props.model.data;
     const { keys } = this.props.model;
 
     return (
@@ -363,15 +386,23 @@ class Game extends Component<{
             e.preventDefault();
           }
         }}>
-        {balls.map(ball => (
-          <BallImage ball={ball} key={key(ball)} />
-        ))}
-        {platforms.map(platform => (
-          <Platform platform={platform} key={key(platform)} />
-        ))}
-        {images.map(image => (
-          <Image image={image} key={key(image)} />
-        ))}
+        <Viewport offsetx={offsetx}>
+          {balls.map(ball => (
+            <BallImage offsetx={offsetx} ball={ball} key={key(ball)} />
+          ))}
+          {platforms.map(platform => (
+            <Platform
+              offsetx={offsetx}
+              platform={platform}
+              key={key(platform)}
+            />
+          ))}
+          {images.map(image => (
+            <Image offsetx={offsetx} image={image} key={key(image)} />
+          ))}
+          <span className={'Score'}>Score: {score}</span>
+          {gameOver && <span className={'GameOver'}>Game Over</span>}
+        </Viewport>
       </div>
     );
   }
