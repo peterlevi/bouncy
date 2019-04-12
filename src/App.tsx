@@ -220,10 +220,12 @@ class Model {
         b.rotation += 4 * b.vx;
       }
 
-      if (b.x - offsetx < 200) {
-        data.offsetx = Math.max(0, b.x - 200);
-      } else if (b.x - offsetx > WIDTH - 800) {
-        data.offsetx = b.x - (WIDTH - 800);
+      const left_margin = 0.125 * WIDTH;
+      const right_margin = 0.4 * WIDTH;
+      if (b.x - offsetx < left_margin) {
+        data.offsetx = Math.max(0, b.x - left_margin);
+      } else if (b.x - offsetx > right_margin) {
+        data.offsetx = b.x - right_margin;
       }
 
       // keep ball in viewport
@@ -356,6 +358,7 @@ class Game extends Component<{
   root: HTMLDivElement | null = null;
 
   render() {
+    const { model } = this.props;
     const {
       gameOver,
       score,
@@ -363,8 +366,8 @@ class Game extends Component<{
       balls,
       platforms,
       images,
-    } = this.props.model.data;
-    const { keys } = this.props.model;
+    } = model.data;
+    const { keys } = model;
 
     return (
       <div
@@ -380,6 +383,11 @@ class Game extends Component<{
           }
         }}
         onKeyUp={e => {
+          if (gameOver && e.key === 'Enter') {
+            model.reset();
+            model.start();
+            return;
+          }
           keys.delete(e.key);
           // console.log(keys);
           if (KEYS.includes(e.key)) {
